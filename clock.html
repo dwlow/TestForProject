@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>My Clock App</title>
+        <script>
+            'use strict';
+            /* Creates the ticker class */
+            class Ticker {
+                /* Makes it a singleton */
+                constructor() {
+                    if (Ticker.instance){
+                        throw "Can't instantiate more than once";
+                    }
+                    Ticker.instance = this;
+                    /* Creates a list of observers */
+                    this.observers = [];
+                    this.currentTimeout;
+                }
+                /* Adds observer to the array */
+                addObserver(observer){
+                    this.observers.push(observer);
+                }
+                /* Notifies all the objects being observed */
+                notify(){
+                    /* Ensures that the previous timeout is clear before starting the next one */
+                    if (this.currentTimeout == null) {
+                        /* Prints a message to log for the sake of testing */
+                        /*console.log("TICK")*/
+                        /* Delays the next notify by one second. Arrow function gets rid of the current timour before calling notification*/
+                        this.currentTimeout = setTimeout(()=>{this.currentTimeout = null; this.notify()},1000);
+                        /* Loops through each observer and updates them */
+                        for(let i = 0;i<this.observers.length;i++){
+                            this.observers[i].update();
+                        }
+                    }
+                    else{
+                        /* Prints a message to log for the sake of testing */
+                        console.log("Tick already going")
+                    }
+                }
+            }
+            /* Creates the clock class */
+            class Clock {
+                constructor(){
+                    /* Gets the html of the clock */
+                    this.clockInfo = document.getElementById("clock");
+                }
+                /* Updates whenever the ticker tells it to, setting it as the current time string */
+                update(){
+                    this.clockInfo.innerHTML = new Date().toTimeString()
+                }
+            }
+            /* Creates the timer class */
+            class Timer {
+                constructor(){
+                    /* Gets the timer section */
+                    this.timerInfo = document.getElementById("timer");
+                    /* Gets the two inputs and the checkbox */
+                    this.timerMinutes = document.getElementById("timerminutes");
+                    this.timerSeconds = document.getElementById("timerseconds");
+                    this.timerCheck = document.getElementById("timercheck");
+                }
+                /* When the ticker calls update the timer */
+                update(){
+                    if (this.timerCheck.checked){
+                        /* Either moves to next minute or ends timer if it is over */
+                        if (this.timerSeconds.value == 0){
+                            /* If the timer is done print times up */
+                            if (this.timerMinutes.value == 0){
+                                this.timerInfo.innerHTML = "Time's Up!";
+                            }
+                            /* Handles looping to the next minute */
+                            else{
+                                this.timerMinutes.value -= 1;
+                                this.timerSeconds.value = 59;
+                                this.timerInfo.innerHTML = String(this.timerMinutes.value) + ":" + String(this.timerSeconds.value);
+                            }
+                        }
+                        /* Decreases seconds by 1 if it should not loop back to 59 */
+                        else{
+                            this.timerSeconds.value -= 1;
+                            this.timerInfo.innerHTML = String(this.timerMinutes.value) + ":" + String(this.timerSeconds.value);
+                        }
+                    }
+                    /* Displays timer stopped if the checkbox is not selected */
+                    else{
+                        this.timerInfo.innerHTML = "Timer stopped"
+                    }
+                }
+            }
+            class Stopwatch {
+                constructor(){
+                    this.time;
+                    /* Creates a store for the last time the stopwatch was active */
+                    this.lastActiveTime;
+                    /* Keeps track of how long it was paused for */
+                    this.paused_time = 0;
+                    /* Keeps track of whether the reset has been handled */
+                    this.wasReset = false;
+                    /* Keep track of wheter or not stopwatch should be ticking */
+                    this.ticking = false;
+                    /* Gets stopwatch header */
+                    this.stopwatchInfo = document.getElementById("stopwatch")
+                    /* Gets the start and stop buttons*/
+                    this.stopwatchStart = document.getElementById("stopwatchstart");
+                    this.stopwatchStop = document.getElementById("stopwatchstop");
+                    /* Starts the stop as disabled */
+                    this.stopwatchStop.disabled = true;
+                }
+                startTime(){
+                    if (!this.time){
+                        this.time = new Date();
+                    }
+                    /* Handles reseting by not starting time over or incrementing pause time */
+                    else if(this.wasReset){
+                        this.time = new Date();
+                        this.wasReset = false;
+                    }
+                    /* Handles unpausing */
+                    else{
+                        /* Adds the amount of time lost to the total amount of time lost */
+                        let currentTime = new Date();
+                        this.paused_time += currentTime - this.lastActiveTime
+                    }
+                    this.ticking = true;
+                    this.stopwatchStart.disabled = true;
+                    this.stopwatchStop.disabled = false;
+                }
+                /* Stops the stopwatch and changes clickable buttons */
+                stopTime(){
+                    this.lastActiveTime = new Date();
+                    this.ticking = false;
+                    this.stopwatchStart.disabled = false;
+                    this.stopwatchStop.disabled = true;                    
+                }
+                /* Resets both the date and the amount of time lost */
+                resetTime(){
+                    /* If it is running currently resets pause time and sets time to the current time */
+                    if (this.ticking){
+                        this.time = new Date();
+                        this.paused_time = 0;
+                    } 
+                    /* If it is not running set a flag to be used in the start time function */
+                    else{
+                        this.wasReset = true;
+                        this.paused_time = 0;
+                    }
+                }
+                /* Habdles the update from tick */
+                update(){
+                    if (this.ticking){
+                        let tempTime = new Date();
+                        /* Gets the difference between this time and the time we started minus the pause time */
+                        let difference = tempTime - this.time - this.paused_time;
+                        /* Gets the milliseconds, seconds, minutes, and hour */
+                        let milliseconds = difference % 1000;
+                        difference = Math.floor(difference/1000);
+                        let seconds = difference % 60;
+                        difference = Math.floor(difference/60);
+                        let minutes = difference % 60;
+                        difference = Math.floor(difference/60);
+                        let hours = difference;
+                        /* Formats all the strings */
+                        milliseconds = "0".repeat(3-String(milliseconds).length) + String(milliseconds);
+                        seconds = "0".repeat(2-String(seconds).length) + String(seconds);
+                        minutes = "0".repeat(2-String(minutes).length) + String(minutes);
+                        hours = String(hours);
+                        /* Adds them to the HTML */
+                        this.stopwatchInfo.innerHTML = hours + ":" + minutes + ":" + seconds + ":" + milliseconds;
+                    }
+                }
+            }
+            /* Creates the countdown */
+            class Countdown {
+                constructor(){
+                    /* Gets countdown header */
+                    this.countdownInfo = document.getElementById("countdown")
+                    /* Gets the time that we will be counting down from or to*/
+                    this.countdownTime = document.getElementById("countdowntime");
+                    /* Gets the hidden item */
+                    this.hiddenItem = document.getElementById("hiddenelement");
+                    /* List of how many days are in each month */
+                    this.monthDays = [31,28,31,30,31,30,31,31,30,31,30,31]
+                }
+                update(){
+                    let currentTime = new Date();
+                    let chosenTime = new Date(this.countdownTime.value);
+                    /* timeA stores the later time and time B stores the earlier one that will subtract a, end string stores either remaining or ago */
+                    let timeA;
+                    let timeB;
+                    let endString;
+                    /* Creates an offset that allows the borrowing from higher levels */
+                    let offset = 0;
+                    /* If the chosen time is before the current time set it as the one to subtract and store the end string as ago */
+                    if (currentTime > chosenTime) {
+                        timeA = currentTime;
+                        timeB = chosenTime;
+                        endString = "ago";
+                    }
+                    /* If the chosen time is after current time set current time as the one to subtract by and set end string as remaining */
+                    else {
+                        timeA = chosenTime;
+                        timeB = currentTime;
+                        endString = "remaining"
+                    }
+                    /* Gets the amount of seconds it's been */
+                    let seconds = timeA.getSeconds() - timeB.getSeconds();
+                    if (seconds < 0){
+                        seconds += 60;
+                        offset = 1;
+                    }
+                    /* Gets the amount of minutes its been */
+                    let minutes = timeA.getMinutes() - timeB.getMinutes() - offset;
+                    offset = 0;
+                    if (minutes < 0){
+                        minutes += 60;
+                        offset = 1;
+                    }
+                    /* Gets the amount of hours its been */
+                    let hours = timeA.getHours() - timeB.getHours() - offset;
+                    offset = 0;
+                    if (hours < 0){
+                        hours += 24;
+                        offset = 1;
+                    }
+                    /* Gets the days of days its been */
+                    let days = timeA.getDate() - timeB.getDate() - offset;
+                    offset = 0;
+                    if (days < 0) {
+                        let last_month = (timeA.getMonth() - 1)% 12;
+                        /* Handles leap year february */
+                        if (last_month == 1){
+                            /* Every four years but not every hundred unless it is divisible by 400*/
+                            if (timeA.getFullYear() % 4 == 0 && (timeA.getFullYear() % 100 != 0 || timeA.getFullYear() % 400 == 0)){
+                                days += 29;
+                            }
+                            else{
+                                days += 28;
+                            }
+                        }
+                        /* For all other months other than february get their length from the list */
+                        else{
+                            days += this.monthDays[last_month];
+                        }
+                        offset = 1;
+                    }
+                    /* Gets the months it's been */
+                    let months = timeA.getMonth() - timeB.getMonth() - offset;
+                    offset = 0;
+                    if (months < 0){
+                        months += 12;
+                        offset = 1;
+                    }
+                    /* Gets the years it's been */
+                    let years = timeA.getFullYear() - timeB.getFullYear() - offset;
+                    /* Displays the info */
+                    this.countdownInfo.innerHTML = years + " years " + months + " months " + days + " days " + hours + " hours " + minutes + " minutes " + seconds + " seconds " + endString
+                    /* Hides and unhides the hidden element */
+                    if (seconds == 0 && minutes == 0 && hours == 0 && days == 0 && months == 0 && years == 0){
+                        this.hiddenItem.style.visibility = "visible";
+                    }
+                    /* Hides the item once it is past the countdown */
+                    else if (this.hiddenItem.style.visibility == "visible"){
+                        this.hiddenItem.style.visibility = "hidden";
+                    }
+                }
+            }
+            /* Creates another singleton class to store all of the different classes */
+            class Manager {
+                constructor(){
+                    if (Manager.instance){
+                        return Manager.instance;
+                    }
+                    Manager.instance = this;
+                    /* Stores all the different clocks */
+                    this.ticker = new Ticker();
+                    this.clock = new Clock();
+                    this.timer = new Timer();
+                    this.stopwatch = new Stopwatch();
+                    this.countdown = new Countdown();
+                    /* Adds all of them as observers to the ticker */
+                    this.ticker.addObserver(this.clock)
+                    this.ticker.addObserver(this.timer)
+                    this.ticker.addObserver(this.stopwatch)
+                    this.ticker.addObserver(this.countdown)
+                }
+                startTicking(){
+                    this.ticker.notify();
+                }
+                stopWatchStart(){
+                    this.stopwatch.startTime();
+                }
+                stopWatchStop(){
+                    this.stopwatch.stopTime();
+                }
+                stopWatchReset(){
+                    this.stopwatch.resetTime();
+                }
+                /* Test function for ensuring that there are not multiple timeouts going at once */
+                testMultipleTicks(){
+                    this.ticker.notify();
+                    this.ticker.notify();
+                    this.ticker.notify();
+                    this.ticker.notify();
+                }
+            }
+            /* notifies the ticker to start */
+            const main = function(){
+                const manager = new Manager();
+                manager.startTicking();
+                /* Gets the start, stop and resetbuttons*/
+                const stopWatchStartButton = document.getElementById("stopwatchstart");
+                const stopWatchStopButton = document.getElementById("stopwatchstop");
+                const stopWatchResetButton = document.getElementById("stopwatchreset");
+                /* Gives the functionality to the stop watch buttons */
+                stopWatchStartButton.addEventListener("click",manager.stopWatchStart.bind(manager))
+                stopWatchStopButton.addEventListener("click",manager.stopWatchStop.bind(manager))
+                stopWatchResetButton.addEventListener("click",manager.stopWatchReset.bind(manager))
+                /*manager.testMultipleTicks()*/
+            }
+            window.addEventListener('load', main);
+
+        </script>
+        <style>
+            html {
+                font-size: 60px;
+                color: black;
+            }
+            h2{
+                border-top: 2px black dotted;
+            }
+            h1{
+                text-align: center;
+            }
+            #hiddenelement {
+                visibility: hidden;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>My Clock App</h1>
+        <section>
+            <h2 id = "clock">00:00:00 GMT-0700 (Mountain Standard Time)</h2>
+        </section>
+        <section>
+            <h2 id = "timer">Timer Stopped</h2>
+            <label>Minutes</label>
+            <input id = "timerminutes" type = "number" min = 0>
+            <label>Seconds</label>
+            <input id = "timerseconds" type = "number" min = 0 max = 59>
+            <label>On</label>
+            <input id = "timercheck" type = "checkbox">
+        </section>
+        <section>
+            <h2 id = "stopwatch">0:00:00:000</h2>
+            <label>Start</label>
+            <button id = "stopwatchstart">Start</button>
+            <label>Stop</label>
+            <button id = "stopwatchstop">Stop</button>
+            <label>Reset</label>
+            <button id = "stopwatchreset">Reset</button>
+        </section>
+        <section>
+            <h2 id = "countdown">0 years 0 months 0 days 0 hours 0 minutes 0 seconds ago</h2>
+            <label>Date and Time</label>
+            <input id = "countdowntime" type = "datetime-local">
+            <h3 id = "hiddenelement">Countdown Complete</h3>
+        </section>
+    </body>
+</html>
